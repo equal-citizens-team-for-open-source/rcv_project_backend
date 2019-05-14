@@ -8,7 +8,8 @@ const DATABASE_NAME = process.env.NODE_ENV === 'test' ? 'stv_test' : 'stv';
 const initElections = async () => {
   const { db, dbClose } = await connect(DATABASE_NAME);
   const dbElections = db.collection('elections');
-  return { dbElections, dbClose };
+  const dbVoteRecords = db.collection('voteRecords');
+  return { dbElections, dbVoteRecords, dbClose };
 };
 
 export const dbCreateElection = async (data: IElection): Promise<string> => {
@@ -26,11 +27,14 @@ export const dbCreateElection = async (data: IElection): Promise<string> => {
       ? data.pollsClose.toISOString()
       : data.pollsClose,
     voterIds: [],
-    votes: [],
   };
-  const { dbElections, dbClose } = await initElections();
+  const { dbElections, dbVoteRecords, dbClose } = await initElections();
   try {
-    const { insertedId } = await dbElections.insertOne(payload);
+    const voteRecord = await dbVoteRecords.insertOne({});
+    const { insertedId } = await dbElections.insertOne({
+      ...payload,
+      voteRecord: voteRecord.insertedId.toHexString(),
+    });
     dbClose();
     return insertedId.toHexString();
   } catch (err) {
@@ -40,11 +44,14 @@ export const dbCreateElection = async (data: IElection): Promise<string> => {
 };
 
 export const dbRetrieveElection = async (electionID: string): Promise<any> => {
-  const { dbElections, dbClose } = await initElections();
+  const { dbElections, dbVoteRecords, dbClose } = await initElections();
   try {
     const result = await dbElections.findOne({ _id: new ObjectID(electionID) });
+    const votes = await dbVoteRecords.findOne({
+      _id: new ObjectID(result.voteRecord),
+    });
     dbClose();
-    return result;
+    return { ...result, votes };
   } catch (err) {
     dbClose();
     return Promise.reject(err);
@@ -84,19 +91,20 @@ export const dbCastVote = async (
   voterId: string,
   vote: string[]
 ) => {
-  const { dbElections, dbClose } = await initElections();
-  const dbID = new ObjectID(electionID);
+  const { dbElections, dbVoteRecords, dbClose } = await initElections();
+  const formattedElectionId = new ObjectID(electionID);
   try {
     // check if election exists and is unique
     const existingElection = await dbElections.findOne(
       {
-        _id: dbID,
+        _id: formattedElectionId,
       },
       {
         projection: {
           voterIds: true,
           pollsClose: true,
           pollsOpen: true,
+          voteRecord: true,
         },
       }
     );
@@ -139,18 +147,20 @@ export const dbCastVote = async (
     // save the vote
     // If the field is absent in the document to update,
     // $push adds the array field with the value as its element.
-    const result = await dbElections.findOneAndUpdate(
-      { _id: dbID },
+    const voteCastResult = await dbVoteRecords.findOneAndUpdate(
+      { _id: new ObjectID(existingElection.voteRecord) },
+      { $inc: { [JSON.stringify(vote)]: 1 } },
+      { upsert: false }
+    );
+    const electionVoterVotedResult = await dbElections.findOneAndUpdate(
       {
-        $push: {
-          votes: vote,
-          voterIds: voterId,
-        },
+        _id: formattedElectionId,
       },
+      { $push: { voterIds: voterId } },
       { upsert: false }
     );
     dbClose();
-    return result;
+    return { voteCastResult, electionVoterVotedResult };
   } catch (err) {
     dbClose();
     return Promise.reject(err);

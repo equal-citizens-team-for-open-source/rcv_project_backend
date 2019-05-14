@@ -37,11 +37,15 @@ describe('db/controllers/elections.ts', () => {
   describe('dbRetrieveElection()', () => {
     it('retrieves the election we just created', async () => {
       const result = await dbRetrieveElection(data.testElectionID);
+      expect(result.voteRecord).toHaveLength(24);
+      expect(result.votes._id.toHexString()).toHaveLength(24);
+      expect(result.voteRecord).toBe(result.votes._id.toHexString());
       expect(result).toEqual({
         ...testElection,
         _id: new ObjectID(data.testElectionID),
-        votes: [],
+        voteRecord: result.voteRecord,
         voterIds: [],
+        votes: result.votes,
       });
     });
   });
@@ -55,8 +59,9 @@ describe('db/controllers/elections.ts', () => {
         ...testElection,
         electionStatus: 'IN_PROGRESS',
         _id: new ObjectID(data.testElectionID),
-        votes: [],
         voterIds: [],
+        voteRecord: result.voteRecord,
+        votes: result.votes,
       });
     });
   });
@@ -69,7 +74,10 @@ describe('db/controllers/elections.ts', () => {
       ]);
       const result = await dbRetrieveElection(data.testElectionID);
       expect(result.voterIds).toEqual(['FIRST']);
-      expect(result.votes).toEqual([['ALPHA', 'BETA', 'GAMMA']]);
+      expect(result.votes).toEqual({
+        '["ALPHA","BETA","GAMMA"]': 1,
+        _id: result.votes._id,
+      });
     });
     it('casts another vote', async () => {
       await dbCastVote(data.testElectionID, 'SECOND', [
@@ -77,9 +85,18 @@ describe('db/controllers/elections.ts', () => {
         'ALPHA',
         'DELTA',
       ]);
+      await dbCastVote(data.testElectionID, 'THIRD', [
+        'ALPHA',
+        'BETA',
+        'GAMMA',
+      ]);
       const result = await dbRetrieveElection(data.testElectionID);
-      expect(result.votes).toContainEqual(['ALPHA', 'BETA', 'GAMMA']);
-      expect(result.votes).toContainEqual(['BETA', 'ALPHA', 'DELTA']);
+      expect(result.votes).toEqual({
+        '["ALPHA","BETA","GAMMA"]': 2,
+        '["BETA","ALPHA","DELTA"]': 1,
+        _id: result.votes._id,
+      });
+
       expect(result.voterIds).toContain('FIRST');
       expect(result.voterIds).toContain('SECOND');
     });
@@ -97,14 +114,14 @@ describe('db/controllers/elections.ts', () => {
       );
       const result = await dbRetrieveElection(data.testElectionID);
 
-      expect(result.votes).toContainEqual(['ALPHA', 'BETA', 'GAMMA']);
-      expect(result.votes).toContainEqual(['BETA', 'ALPHA', 'DELTA']);
-      expect(result.votes).not.toContainEqual([
-        'ALPHA',
-        'BETA',
-        'GAMMA',
-        'DELTA',
-      ]);
+      expect(result.votes).toEqual({
+        '["ALPHA","BETA","GAMMA"]': 2,
+        '["BETA","ALPHA","DELTA"]': 1,
+        _id: result.votes._id,
+      });
+      expect(
+        result.votes[JSON.stringify(['ALPHA', 'BETA', 'GAMMA', 'DELTA'])]
+      ).toBeUndefined();
       expect(result.voterIds).toContain('FIRST');
       expect(result.voterIds).toContain('SECOND');
     });
@@ -127,19 +144,30 @@ describe('db/controllers/elections.ts', () => {
       expect(data.errMsg2.substring(0, 66)).toBe(
         'Your vote was not recorded, because polls have closed for election'
       );
-
-      const result2 = await dbRetrieveElection(data.testElectionID);
-      expect(result2.votes).toContainEqual(['ALPHA', 'BETA', 'GAMMA']);
-      expect(result2.votes).toContainEqual(['BETA', 'ALPHA', 'DELTA']);
-      expect(result2.votes).not.toContainEqual([
+      await dbCastVote(data.testElectionID, 'ALSOLATE', [
         'ALPHA',
         'BETA',
         'GAMMA',
-        'DELTA',
-      ]);
+      ]).catch((errMsg: string) => {
+        data.errMsg2a = errMsg;
+      });
+      expect(data.errMsg2.substring(0, 66)).toBe(
+        'Your vote was not recorded, because polls have closed for election'
+      );
+
+      const result2 = await dbRetrieveElection(data.testElectionID);
+      expect(result2.votes).toEqual({
+        '["ALPHA","BETA","GAMMA"]': 2,
+        '["BETA","ALPHA","DELTA"]': 1,
+        _id: result2.votes._id,
+      });
+      expect(
+        result2.votes[JSON.stringify(['ALPHA', 'BETA', 'GAMMA', 'DELTA'])]
+      ).toBeUndefined();
       expect(result2.voterIds).toContain('FIRST');
       expect(result2.voterIds).toContain('SECOND');
       expect(result2.voterIds).not.toContain('LATE');
+      expect(result2.voterIds).not.toContain('ALSOLATE');
     });
     it('does not let the voter vote early', async () => {
       await dbUpdateElection(data.testElectionID, {
@@ -165,14 +193,14 @@ describe('db/controllers/elections.ts', () => {
       );
 
       const result2 = await dbRetrieveElection(data.testElectionID);
-      expect(result2.votes).toContainEqual(['ALPHA', 'BETA', 'GAMMA']);
-      expect(result2.votes).toContainEqual(['BETA', 'ALPHA', 'DELTA']);
-      expect(result2.votes).not.toContainEqual([
-        'ALPHA',
-        'BETA',
-        'GAMMA',
-        'DELTA',
-      ]);
+      expect(result2.votes).toEqual({
+        '["ALPHA","BETA","GAMMA"]': 2,
+        '["BETA","ALPHA","DELTA"]': 1,
+        _id: result2.votes._id,
+      });
+      expect(
+        result2.votes[JSON.stringify(['ALPHA', 'BETA', 'GAMMA', 'DELTA'])]
+      ).toBeUndefined();
       expect(result2.voterIds).toContain('FIRST');
       expect(result2.voterIds).toContain('SECOND');
       expect(result2.voterIds).not.toContain('EARLY');
