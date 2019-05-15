@@ -15,8 +15,6 @@ export enum CandidateAction {
 // Candidate shortcode, number of votes;
 export type VoteTuple = [string, number];
 
-export type VoteRecord = string[][];
-
 export interface IElectedSeat {
   candidate: string;
   action: CandidateAction;
@@ -34,7 +32,9 @@ export interface IVotingRoundReport {
 }
 
 export interface IVoteTallier {
-  votes: VoteRecord;
+  votes: {
+    [key: string]: number;
+  };
   electionType?: ElectionType;
   seats?: number; // number of seats up for grabs OR number of total delegates;
 }

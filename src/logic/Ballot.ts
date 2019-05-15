@@ -1,7 +1,10 @@
 export default class Ballot {
   private weight: number = 1.0;
-
-  constructor(public candidates: string[]) {}
+  public candidates: string[];
+  constructor(candidates: string, voteCount: number) {
+    this.weight = voteCount;
+    this.candidates = JSON.parse(candidates);
+  }
 
   public getWeight = (): number => this.weight;
 

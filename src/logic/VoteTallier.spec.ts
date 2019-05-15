@@ -1,9 +1,23 @@
 import { range } from 'lodash';
 import VoteTallier from './VoteTallier';
-import { ElectionType, CandidateAction, VoteRecord } from '../types';
+import { ElectionType, CandidateAction } from '../types';
 import Ballot from './Ballot';
 
-const genVotes = (): VoteRecord => {
+const consolidator = (votes: string[][]) => {
+  const stringifiedVotes = votes.map(vote => JSON.stringify(vote));
+  return stringifiedVotes.reduce(
+    (pv: { [key: string]: number }, cv: string) => {
+      if (!pv[cv]) {
+        pv[cv] = 0;
+      }
+      pv[cv] += 1;
+      return pv;
+    },
+    {}
+  );
+};
+
+const genVotes = (): { [key: string]: number } => {
   const votes: string[][] = [];
   range(40).forEach(() => {
     votes.push(['ALPHA', 'BETA', 'GAMMA']);
@@ -20,10 +34,10 @@ const genVotes = (): VoteRecord => {
   range(48).forEach(() => {
     votes.push(['GAMMA', 'BETA', 'ALPHA']);
   });
-  return votes;
+  return consolidator(votes);
 };
 
-const genPrimary = (): VoteRecord => {
+const genPrimary = (): { [key: string]: number } => {
   const votes: string[][] = [];
   range(400).forEach(() => {
     votes.push(['ALPHA', 'BETA', 'GAMMA']);
@@ -85,18 +99,21 @@ const genPrimary = (): VoteRecord => {
   range(480).forEach(() => {
     votes.push(['ZETA', 'BETA', 'ALPHA']);
   });
-  return votes;
+  return consolidator(votes);
 };
 
-const sample: VoteRecord = genVotes();
+const sample: { [key: string]: number } = genVotes();
 const data: any = {};
 
 describe('genVotes', () => {
   it('has the right lengths', () => {
-    for (const vote of sample) {
-      expect(vote).toHaveLength(3);
-    }
-    expect(sample).toHaveLength(220);
+    expect(sample).toEqual({
+      '["ALPHA","BETA","GAMMA"]': 40,
+      '["ALPHA","GAMMA","BETA"]': 42,
+      '["BETA","ALPHA","GAMMA"]': 44,
+      '["GAMMA","ALPHA","BETA"]': 46,
+      '["GAMMA","BETA","ALPHA"]': 48,
+    });
   });
 });
 
@@ -106,8 +123,18 @@ describe('class VoteTallier', () => {
       data.test1 = new VoteTallier({ votes: sample });
       const results1 = data.test1.debug();
       expect(
-        results1.ballots.map((ballot: Ballot): string[] => ballot.candidates)
-      ).toEqual(sample);
+        results1.ballots.map(
+          (ballot: Ballot): { [key: string]: number } => ({
+            [JSON.stringify(ballot.candidates)]: ballot.getWeight(),
+          })
+        )
+      ).toEqual([
+        { '["ALPHA","BETA","GAMMA"]': 40 },
+        { '["ALPHA","GAMMA","BETA"]': 42 },
+        { '["BETA","ALPHA","GAMMA"]': 44 },
+        { '["GAMMA","ALPHA","BETA"]': 46 },
+        { '["GAMMA","BETA","ALPHA"]': 48 },
+      ]);
       expect(results1.seats).toEqual(1);
       expect(results1.quota).toEqual(111);
     });
@@ -119,8 +146,17 @@ describe('class VoteTallier', () => {
       });
       const results2 = data.test2.debug();
       expect(
-        results2.ballots.map((ballot: Ballot): string[] => ballot.candidates)
-      ).toEqual(sample);
+        results2.ballots.map((ballot: Ballot) => ({
+          candidates: ballot.candidates,
+          weight: ballot.getWeight(),
+        }))
+      ).toEqual([
+        { candidates: ['ALPHA', 'BETA', 'GAMMA'], weight: 40 },
+        { candidates: ['ALPHA', 'GAMMA', 'BETA'], weight: 42 },
+        { candidates: ['BETA', 'ALPHA', 'GAMMA'], weight: 44 },
+        { candidates: ['GAMMA', 'ALPHA', 'BETA'], weight: 46 },
+        { candidates: ['GAMMA', 'BETA', 'ALPHA'], weight: 48 },
+      ]);
       expect(results2.seats).toEqual(2);
       expect(results2.quota).toEqual(74);
     });
@@ -166,7 +202,7 @@ describe('class VoteTallier', () => {
             votesTransferred: 15,
           },
         },
-        { round: 3, results: { GAMMA: 108.99999999999996 } },
+        { round: 3, results: { GAMMA: 109 } },
       ]);
     });
     it('correctly tallies STV', async () => {
@@ -187,16 +223,16 @@ describe('class VoteTallier', () => {
         },
         {
           round: 2,
-          results: { ALPHA: 91.78723404255305, BETA: 54.21276595744666 },
+          results: { ALPHA: 91.7872340425532, BETA: 54.212765957446805 },
           outcome: {
             candidate: 'ALPHA',
             action: 'ELECTED - MET QUOTA',
             round: 2,
             seats: 1,
-            votesTransferred: 17.787234042553052,
+            votesTransferred: 17.787234042553195,
           },
         },
-        { round: 3, results: { BETA: 71.99999999999967 } },
+        { round: 3, results: { BETA: 72 } },
       ]);
     });
   });
@@ -285,7 +321,7 @@ describe('class VoteTallier', () => {
             votesTransferred: 939,
           },
         },
-        { round: 6, results: { ALPHA: 3625.292134831411 } },
+        { round: 6, results: { ALPHA: 3625.2921348314603 } },
       ]);
     });
     it('works for STV', () => {
@@ -314,16 +350,16 @@ describe('class VoteTallier', () => {
         {
           round: 2,
           results: {
-            ALPHA: 1740.9716312056798,
-            BETA: 1530.7234042553318,
-            DELTA: 1841.9432624113597,
-            EPSILON: 545.3617021276659,
+            ALPHA: 1740.9716312056737,
+            BETA: 1530.723404255319,
+            DELTA: 1841.9432624113474,
+            EPSILON: 545.3617021276596,
             ZETA: 940,
           },
           outcome: {
             candidate: 'EPSILON',
             action: 'ELIMINATED - FEWEST VOTES',
-            votesTransferred: 545.3617021276659,
+            votesTransferred: 545.3617021276596,
             round: 2,
             seats: 0,
           },
@@ -331,9 +367,9 @@ describe('class VoteTallier', () => {
         {
           round: 3,
           results: {
-            ALPHA: 1740.9716312056798,
-            BETA: 1530.7234042553318,
-            DELTA: 2387.304964538812,
+            ALPHA: 1740.9716312056737,
+            BETA: 1530.723404255319,
+            DELTA: 2387.304964539007,
             ZETA: 940,
           },
           outcome: {
@@ -341,14 +377,14 @@ describe('class VoteTallier', () => {
             action: 'ELECTED - MET QUOTA',
             round: 3,
             seats: 1,
-            votesTransferred: 186.30496453881187,
+            votesTransferred: 186.30496453900696,
           },
         },
         {
           round: 4,
           results: {
-            ALPHA: 1740.9716312056798,
-            BETA: 1602.595908875287,
+            ALPHA: 1740.9716312056737,
+            BETA: 1602.59590887533,
             ZETA: 940,
           },
           outcome: {
@@ -361,18 +397,18 @@ describe('class VoteTallier', () => {
         },
         {
           round: 5,
-          results: { ALPHA: 2200.97163120568, BETA: 2082.595908875287 },
+          results: { ALPHA: 2200.9716312056735, BETA: 2082.5959088753298 },
           outcome: {
             candidate: 'BETA',
             action: 'ELIMINATED - FEWEST VOTES',
-            votesTransferred: 2082.595908875287,
+            votesTransferred: 2082.5959088753298,
             round: 5,
             seats: 0,
           },
         },
         {
           round: 6,
-          results: { ALPHA: 3666.3333333333458 },
+          results: { ALPHA: 3666.333333333333 },
           outcome: {
             candidate: 'ALPHA',
             action: 'ELECTED - OTHER CANDIDATES ELIMINATED',
@@ -424,10 +460,10 @@ describe('class VoteTallier', () => {
         {
           round: 2,
           results: {
-            ALPHA: 1696.9290780141682,
-            BETA: 1438.8085106382914,
-            DELTA: 1753.8581560283365,
-            EPSILON: 499.40425531915935,
+            ALPHA: 1696.9290780141844,
+            BETA: 1438.8085106382978,
+            DELTA: 1753.8581560283687,
+            EPSILON: 499.40425531914894,
             ZETA: 940,
           },
           outcome: {
@@ -435,15 +471,15 @@ describe('class VoteTallier', () => {
             action: 'ELECTED - MET QUOTA',
             round: 2,
             seats: 4,
-            votesTransferred: 341.85815602833645,
+            votesTransferred: 341.85815602836874,
           },
         },
         {
           round: 3,
           results: {
-            ALPHA: 1696.9290780141682,
-            BETA: 1609.7375886525047,
-            EPSILON: 670.3333333333111,
+            ALPHA: 1696.9290780141844,
+            BETA: 1609.7375886524821,
+            EPSILON: 670.3333333333334,
             ZETA: 940,
           },
           outcome: {
@@ -451,44 +487,44 @@ describe('class VoteTallier', () => {
             action: 'ELECTED - MET QUOTA',
             round: 3,
             seats: 4,
-            votesTransferred: 284.9290780141682,
+            votesTransferred: 284.92907801418437,
           },
         },
         {
           round: 4,
           results: {
-            BETA: 1756.981570100909,
-            EPSILON: 737.4967950727031,
-            ZETA: 1010.5216348263618,
+            BETA: 1756.9815701009052,
+            EPSILON: 737.4967950727291,
+            ZETA: 1010.5216348263655,
           },
           outcome: {
             candidate: 'BETA',
             action: 'ELECTED - MET QUOTA',
             round: 4,
             seats: 4,
-            votesTransferred: 344.98157010090904,
+            votesTransferred: 344.9815701009052,
           },
         },
         {
           round: 5,
-          results: { EPSILON: 737.4967950727031, ZETA: 1096.9151937728473 },
+          results: { EPSILON: 737.4967950727291, ZETA: 1096.9151937728493 },
           outcome: {
             candidate: 'ZETA',
             action: 'ELECTED - MET QUOTA',
             round: 5,
             seats: 3,
-            votesTransferred: 37.91519377284726,
+            votesTransferred: 37.91519377284931,
           },
         },
         {
           round: 6,
-          results: { EPSILON: 737.4967950727031 },
+          results: { EPSILON: 737.4967950727291 },
           outcome: {
             candidate: 'EPSILON',
             action: 'ELECTED - MET QUOTA',
             round: 6,
             seats: 2,
-            votesTransferred: 31.496795072703094,
+            votesTransferred: 31.496795072729128,
           },
         },
         { round: 7, results: {} },

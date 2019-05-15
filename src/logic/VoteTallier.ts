@@ -20,14 +20,21 @@ export default class VoteTallier {
   private reports: IVotingRoundReport[] = [];
 
   constructor(data: IVoteTallier) {
-    this.ballots = data.votes.map((vote: string[]) => new Ballot(vote));
+    this.ballots = Object.entries(data.votes).map(
+      ([candidates, voteCount]) => new Ballot(candidates, voteCount)
+    );
+
     if (data.seats) {
       this.seats = data.seats;
     }
     if (data.electionType) {
       this.electionType = data.electionType;
     }
-    this.quota = Math.floor(this.ballots.length / (this.seats + 1)) + 1;
+    const totalVotes: number = Object.values(data.votes).reduce(
+      (pv: number, cv: number): number => pv + cv,
+      0
+    );
+    this.quota = Math.floor(totalVotes / (this.seats + 1)) + 1;
   }
 
   public debug = () => {
