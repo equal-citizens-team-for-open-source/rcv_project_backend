@@ -6,7 +6,7 @@ import {
   dbCastVote,
   dbUpdateElection,
 } from '../../../db/controllers/elections';
-import pick from 'lodash/pick';
+// import pick from 'lodash/pick';
 
 const electionRoutes = (app: Application) => {
   // eventually this will have checkJWT & checkRole.
@@ -53,22 +53,19 @@ const electionRoutes = (app: Application) => {
       const { voterId, vote } = req.body;
       const { electionID } = req.params;
       try {
-        const ballotCast = await dbCastVote(electionID, voterId, vote);
-        res.status(200).send({
-          ...pick(ballotCast.value, [
-            'electionStatus',
-            'electionType',
-            'pollsOpen',
-            'pollsClose',
-            'resultsVisibility',
-            'seats',
-            'title',
-            'subtitle',
-          ]),
-          voterId,
-          vote,
+        const { voteCastResult, electionVoterVotedResult } = await dbCastVote(
           electionID,
-        });
+          voterId,
+          vote
+        );
+        const payload = {
+          voteCastOk:
+            voteCastResult.ok === 1 && electionVoterVotedResult.ok === 1,
+          electionId: electionVoterVotedResult.value._id,
+          voteRecordId: electionVoterVotedResult.value.voteRecord,
+        };
+
+        res.status(200).send(payload);
       } catch (err) {
         res.status(500).send(err);
       }

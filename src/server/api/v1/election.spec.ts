@@ -21,7 +21,7 @@ const testElection = {
 };
 
 const cache: any = {};
-// TODO: test 500 route responses;;
+// TODO: test 500 route responses;
 describe('server/api/v1/elections', () => {
   beforeAll(async () => {
     cache.server = await runServer(4444);
@@ -35,11 +35,14 @@ describe('server/api/v1/elections', () => {
         data: testElection,
       }).catch(console.warn);
       cache.id = data._id;
-      expect(omit(data, ['_id'])).toEqual({
+      expect(omit(data)).toEqual({
+        _id: data._id,
         ...testElection,
-        votes: [],
+        voteRecord: data.voteRecord,
+        votes: data.votes,
         voterIds: [],
       });
+      expect(data.voteRecord).toHaveLength(24);
     });
   });
   describe('GET http://localhost:4444/api/v1/elections/:electionID', () => {
@@ -50,7 +53,8 @@ describe('server/api/v1/elections', () => {
       }).catch(console.warn);
       expect(data).toEqual({
         ...testElection,
-        votes: [],
+        votes: data.votes,
+        voteRecord: data.voteRecord,
         voterIds: [],
         _id: cache.id,
       });
@@ -68,8 +72,9 @@ describe('server/api/v1/elections', () => {
       expect(data).toEqual({
         ...testElection,
         subtitle: 'updated subtitle',
-        votes: [],
+        voteRecord: data.voteRecord,
         voterIds: [],
+        votes: data.votes,
         _id: cache.id,
       });
     });
@@ -85,12 +90,11 @@ describe('server/api/v1/elections', () => {
         },
       }).catch(console.warn);
       expect(data).toEqual({
-        ...testElection,
-        subtitle: 'updated subtitle',
-        electionID: cache.id,
-        vote: ['LAZERHAWK', 'PURTURBATOR', 'KAVINSKY'],
-        voterId: 'API FIRST',
+        electionId: cache.id,
+        voteCastOk: true,
+        voteRecordId: data.voteRecordId,
       });
+      cache.voteRecordId = data.voteRecordId;
     });
     it('casts a 2nd ballot', async () => {
       const { data }: any = await axios({
@@ -102,11 +106,9 @@ describe('server/api/v1/elections', () => {
         },
       }).catch(console.warn);
       expect(data).toEqual({
-        ...testElection,
-        subtitle: 'updated subtitle',
-        electionID: cache.id,
-        vote: ['LAZERHAWK', 'KAVINSKY', 'STROM'],
-        voterId: 'API SECOND',
+        electionId: cache.id,
+        voteCastOk: true,
+        voteRecordId: data.voteRecordId,
       });
     });
     it("won't let anyone vote twice", async () => {
@@ -124,6 +126,26 @@ describe('server/api/v1/elections', () => {
       expect(cache.catcherr).toBe(
         `Voter: API SECOND has already cast a ballot in this election`
       );
+    });
+    describe('GET http://localhost:4444/api/v1/elections/:electionID', () => {
+      it("gets an election's data after the votes", async () => {
+        const { data }: any = await axios({
+          method: 'get',
+          url: `http://localhost:4444/api/v1/elections/${cache.id}`,
+        }).catch(console.warn);
+        expect(data).toEqual({
+          ...testElection,
+          votes: {
+            _id: data.votes._id,
+            '["LAZERHAWK","KAVINSKY","STROM"]': 1,
+            '["LAZERHAWK","PURTURBATOR","KAVINSKY"]': 1,
+          },
+          subtitle: 'updated subtitle',
+          voteRecord: data.voteRecord,
+          voterIds: ['API FIRST', 'API SECOND'],
+          _id: cache.id,
+        });
+      });
     });
   });
   afterAll(async () => {

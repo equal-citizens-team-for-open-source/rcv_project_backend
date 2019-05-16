@@ -145,8 +145,6 @@ export const dbCastVote = async (
     }
 
     // save the vote
-    // If the field is absent in the document to update,
-    // $push adds the array field with the value as its element.
     const voteCastResult = await dbVoteRecords.findOneAndUpdate(
       { _id: new ObjectID(existingElection.voteRecord) },
       { $inc: { [JSON.stringify(vote)]: 1 } },
