@@ -6,7 +6,6 @@ import {
   ElectionResultsVisibility,
   ElectionType,
 } from '../../../types';
-import omit from 'lodash/omit';
 const testElection = {
   title: 'API Test Election',
   subtitle: 'testing the database',
@@ -19,6 +18,7 @@ const testElection = {
     .add({ hours: 12 })
     .toISOString(),
 };
+const MR_TEST = `Mr.Test${Math.random().toString()}`;
 
 const cache: any = {};
 // TODO: test 500 route responses;
@@ -32,15 +32,16 @@ describe('server/api/v1/elections', () => {
       const { data }: any = await axios({
         method: 'post',
         url: 'http://localhost:4444/api/v1/elections/create',
-        data: testElection,
+        data: { ...testElection, userId: MR_TEST },
       }).catch(console.warn);
       cache.id = data._id;
-      expect(omit(data)).toEqual({
+      expect(data).toEqual({
         _id: data._id,
         ...testElection,
         voteRecord: data.voteRecord,
         votes: data.votes,
         voterIds: [],
+        userId: MR_TEST,
       });
       expect(data.voteRecord).toHaveLength(24);
     });
@@ -57,6 +58,7 @@ describe('server/api/v1/elections', () => {
         voteRecord: data.voteRecord,
         voterIds: [],
         _id: cache.id,
+        userId: MR_TEST,
       });
     });
   });
@@ -76,6 +78,7 @@ describe('server/api/v1/elections', () => {
         voterIds: [],
         votes: data.votes,
         _id: cache.id,
+        userId: MR_TEST,
       });
     });
   });
@@ -144,6 +147,7 @@ describe('server/api/v1/elections', () => {
           voteRecord: data.voteRecord,
           voterIds: ['API FIRST', 'API SECOND'],
           _id: cache.id,
+          userId: MR_TEST,
         });
       });
     });

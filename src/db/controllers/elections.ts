@@ -12,8 +12,11 @@ const initElections = async () => {
   return { dbElections, dbVoteRecords, dbClose };
 };
 
-export const dbCreateElection = async (data: IElection): Promise<string> => {
-  const payload: IElection = {
+export const dbCreateElection = async (
+  data: IElection,
+  electionCreator: string
+): Promise<string> => {
+  const payload: IElection & { electionCreator: string } = {
     title: data.title,
     subtitle: data.subtitle,
     electionStatus: data.electionStatus,
@@ -27,6 +30,8 @@ export const dbCreateElection = async (data: IElection): Promise<string> => {
       ? data.pollsClose.toISOString()
       : data.pollsClose,
     voterIds: [],
+    electionCreator,
+    createdAt: moment().toISOString(),
   };
   const { dbElections, dbVoteRecords, dbClose } = await initElections();
   try {

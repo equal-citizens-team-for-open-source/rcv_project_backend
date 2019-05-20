@@ -12,6 +12,8 @@ import {
 } from '../../types';
 import { ObjectID } from 'mongodb';
 
+const MR_TEST = 'MRTEST' + Math.random().toString();
+
 const testElection = {
   title: 'Test Election',
   subtitle: 'testing the database',
@@ -29,7 +31,7 @@ const data: any = {};
 describe('db/controllers/elections.ts', () => {
   describe('dbCreateElection()', () => {
     it('saves a new election', async () => {
-      data.testElectionID = await dbCreateElection(testElection);
+      data.testElectionID = await dbCreateElection(testElection, MR_TEST);
       expect(typeof data.testElectionID).toBe('string');
       expect(data.testElectionID).toHaveLength(24);
     });
@@ -46,6 +48,7 @@ describe('db/controllers/elections.ts', () => {
         voteRecord: result.voteRecord,
         voterIds: [],
         votes: result.votes,
+        userId: MR_TEST,
       });
     });
   });
@@ -62,6 +65,7 @@ describe('db/controllers/elections.ts', () => {
         voterIds: [],
         voteRecord: result.voteRecord,
         votes: result.votes,
+        userId: MR_TEST,
       });
     });
   });
