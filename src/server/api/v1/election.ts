@@ -12,6 +12,7 @@ const electionRoutes = (app: Application) => {
   // eventually this will have checkJWT & checkRole.
   app.post('/api/v1/elections/create', async (req: Request, res: Response) => {
     const election: IElection & { electionCreator?: string } = req.body;
+    console.log(req.body);
     const electionCreator: string = req.body.electionCreator;
     try {
       const insertedID: string = await dbCreateElection(
