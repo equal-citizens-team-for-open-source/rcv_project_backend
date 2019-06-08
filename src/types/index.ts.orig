@@ -18,12 +18,15 @@ export enum CandidateAction {
 // Candidate shortcode, number of votes;
 export type VoteTuple = [string, number];
 
+<<<<<<< HEAD
+=======
 export type VoteRecord = string[][];
 
 export interface IVoteCount {
   [key: string]: number;
 }
 
+>>>>>>> actual_algorithm
 export interface IElectedSeat {
   candidate: string;
   action: CandidateAction;
@@ -40,7 +43,9 @@ export interface IVotingRoundReport {
 }
 
 export interface IVoteTallier {
-  votes: VoteRecord;
+  votes: {
+    [key: string]: number;
+  };
   electionType?: ElectionType;
   seats?: number; // number of seats up for grabs OR number of total delegates;
 }

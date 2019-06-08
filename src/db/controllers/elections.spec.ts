@@ -48,7 +48,8 @@ describe('db/controllers/elections.ts', () => {
         voteRecord: result.voteRecord,
         voterIds: [],
         votes: result.votes,
-        userId: MR_TEST,
+        createdAt: result.createdAt,
+        electionCreator: MR_TEST,
       });
     });
   });
@@ -65,7 +66,8 @@ describe('db/controllers/elections.ts', () => {
         voterIds: [],
         voteRecord: result.voteRecord,
         votes: result.votes,
-        userId: MR_TEST,
+        createdAt: result.createdAt,
+        electionCreator: MR_TEST,
       });
     });
   });

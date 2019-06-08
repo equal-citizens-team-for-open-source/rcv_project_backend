@@ -32,7 +32,7 @@ describe('server/api/v1/elections', () => {
       const { data }: any = await axios({
         method: 'post',
         url: 'http://localhost:4444/api/v1/elections/create',
-        data: { ...testElection, userId: MR_TEST },
+        data: { ...testElection, electionCreator: MR_TEST },
       }).catch(console.warn);
       cache.id = data._id;
       expect(data).toEqual({
@@ -41,7 +41,8 @@ describe('server/api/v1/elections', () => {
         voteRecord: data.voteRecord,
         votes: data.votes,
         voterIds: [],
-        userId: MR_TEST,
+        createdAt: data.createdAt,
+        electionCreator: MR_TEST,
       });
       expect(data.voteRecord).toHaveLength(24);
     });
@@ -58,7 +59,8 @@ describe('server/api/v1/elections', () => {
         voteRecord: data.voteRecord,
         voterIds: [],
         _id: cache.id,
-        userId: MR_TEST,
+        createdAt: data.createdAt,
+        electionCreator: MR_TEST,
       });
     });
   });
@@ -78,7 +80,8 @@ describe('server/api/v1/elections', () => {
         voterIds: [],
         votes: data.votes,
         _id: cache.id,
-        userId: MR_TEST,
+        createdAt: data.createdAt,
+        electionCreator: MR_TEST,
       });
     });
   });
@@ -147,7 +150,8 @@ describe('server/api/v1/elections', () => {
           voteRecord: data.voteRecord,
           voterIds: ['API FIRST', 'API SECOND'],
           _id: cache.id,
-          userId: MR_TEST,
+          createdAt: data.createdAt,
+          electionCreator: MR_TEST,
         });
       });
     });
